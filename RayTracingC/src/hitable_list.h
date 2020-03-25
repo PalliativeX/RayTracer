@@ -18,8 +18,10 @@ bool hitable_list::hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) 
 	hit_record TempRec;
 	bool HitAnything = false;
 	double ClosestSoFar = TMax;
-	for (int i = 0; i < ListSize; i++) {
-		if (List[i]->hit(Ray, TMin, ClosestSoFar, TempRec)) {
+	for (int i = 0; i < ListSize; i++)
+	{
+		if (List[i]->hit(Ray, TMin, ClosestSoFar, TempRec)) 
+		{
 			HitAnything = true;
 			ClosestSoFar = TempRec.T;
 			Rec = TempRec;
