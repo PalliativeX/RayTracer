@@ -1,22 +1,25 @@
 #include <iostream>
 #include <fstream>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "material.h"
 #include "sphere.h"
 #include "hitable_list.h"
 #include "ray.h"
 #include "camera.h"
 
-vec3 color(const ray& Ray, hitable *World, int Depth)
+vec3 Color(const ray& Ray, hitable *World, int Depth)
 {
 	hit_record Rec;
-	if (World->hit(Ray, 0.001f, FLT_MAX, Rec))
+	if (World->Hit(Ray, 0.001f, FLT_MAX, Rec))
 	{
 		ray Scattered;
 		vec3 Attenuation;
-		if (Depth < 50 && Rec.MatPtr->scatter(Ray, Rec, Attenuation, Scattered))
+		if (Depth < 50 && Rec.MatPtr->Scatter(Ray, Rec, Attenuation, Scattered))
 		{
-			return Attenuation * color(Scattered, World, Depth + 1);
+			return Attenuation * Color(Scattered, World, Depth + 1);
 		}
 		else
 		{
@@ -25,58 +28,119 @@ vec3 color(const ray& Ray, hitable *World, int Depth)
 	}
 	else
 	{
-		vec3 UnitDirection = unit_vector(Ray.direction());
+		vec3 UnitDirection = UnitVector(Ray.direction());
 		float T = 0.5f * (UnitDirection.y() + 1.f);
 		return (1.f - T) * vec3(1.f, 1.f, 1.f) + T * vec3(0.5f, 0.7f, 1.f);
 	}
 }
 
+hitable *RandomScene() 
+{
+	int n = 500;
+	hitable **list = new hitable*[n + 1];
+	list[0] = new sphere(vec3(0, -1000, 0), 1000, new lambertian(vec3(0.5, 0.5, 0.5)));
+	int i = 1;
+	for (int a = -11; a < 11; a++)
+	{
+		for (int b = -11; b < 11; b++) 
+		{
+			float choose_mat = RandomDouble();
+			vec3 center(a + 0.9*RandomDouble(), 0.2, b + 0.9*RandomDouble());
+			if ((center - vec3(4, 0.2, 0)).Length() > 0.9)
+			{
+				if (choose_mat < 0.8) 
+				{  // diffuse
+					list[i++] = new sphere(
+						center, 0.2,
+						new lambertian(vec3(RandomDouble()*RandomDouble(),
+									        RandomDouble()*RandomDouble(),
+											RandomDouble()*RandomDouble()))
+					);
+				}
+				else if (choose_mat < 0.95) 
+				{ // metal
+					list[i++] = new sphere(
+						center, 0.2,
+						new metal(vec3(0.5*(1 + RandomDouble()),
+							0.5*(1 + RandomDouble()),
+							0.5*(1 + RandomDouble())),
+							0.5*RandomDouble())
+					);
+				}
+				else 
+				{  // glass
+					list[i++] = new sphere(center, 0.2f, new dielectric(1.5));
+				}
+			}
+		}
+	}
+
+	list[i++] = new sphere(vec3(0.f, 1.f, 0.f), 1.f, new dielectric(1.5f));
+	list[i++] = new sphere(vec3(-4.f, 1.f, 0.f), 1.f, new lambertian(vec3(0.4f, 0.2f, 0.1f)));
+	list[i++] = new sphere(vec3(4.f, 1.f, 0.f), 1.f, new metal(vec3(0.7f, 0.6f, 0.5f), 0.f));
+
+	return new hitable_list(list, i);
+}
+
 int main()
 {
-	int Width = 200;
-	int Height = 100;
-	int Ns = 100;
+	int Width = 800;
+	int Height = 400;
+	int Ns = 10;
+	int ChannelNum = 3;
 
-	std::ofstream File;
-	File.open("image.ppm");
-	File << "P3\n" << Width << " " << Height << "\n255\n";
+	uint8_t *Pixels = new uint8_t[Width * Height * ChannelNum];
 
-	hitable *List[5];
-	List[0] = new sphere(vec3(0, 0, -1.f), 0.5f, new lambertian(vec3(0.8f, 0.3f, 0.3f)));
-	List[1] = new sphere(vec3(0, -100.5f, -1.f), 100.f, new lambertian(vec3(0.8f, 0.8f, 0.0f)));
-	List[2] = new sphere(vec3(1.f, 0.f, -1.f), 0.5f, new metal(vec3(0.8f, 0.6f, 0.2f), 0.3f));
-	List[3] = new sphere(vec3(-1.f, 0.f, -1.f), 0.5f, new dielectric(1.5f));
-	List[4] = new sphere(vec3(-1.f, 0.f, -1.f), -0.45f, new dielectric(1.5f));
-	hitable *World = new hitable_list(List, 5);
+	// NOTE: Conventional output to a .ppm file
+	//std::ofstream File;
+	//File.open("image.ppm");
+	//File << "P3\n" << Width << " " << Height << "\n255\n";
 
-	camera Cam;
+	hitable *World = RandomScene();
 
+	vec3 LookFrom(13.f, 2.f, 3.f);
+	vec3 LookAt(0.f, 0.f, 0.f);
+	float DistToFocus = 10.f;
+	float Aperture = 0.1f;
+
+	camera Cam(LookFrom, LookAt, vec3(0, 1, 0), 20, float(Width)/float(Height), Aperture, DistToFocus);
+
+	int Index = 0;
 	// From top to bottom
 	for (int j = Height - 1; j >= 0; j--)
 	{
 		for (int i = 0; i < Width; i++)
 		{
-			vec3 Color(0, 0, 0);
+			vec3 Col(0, 0, 0);
 			for (int s = 0; s < Ns; s++)
 			{
-				float U = float(i) / float(Width);
-				float V = float(j) / float(Height);
-				ray Ray = Cam.getRay(U, V);
+				float U = float(i + RandomDouble()) / float(Width);
+				float V = float(j + RandomDouble()) / float(Height);
+				ray Ray = Cam.GetRay(U, V);
 
 				vec3 P = Ray.point_at_parameter(2.f);
-				Color += color(Ray, World, 0);
+				Col += Color(Ray, World, 0);
 			}
-			Color /= float(Ns);
-			Color = vec3(sqrt(Color[0]), sqrt(Color[1]), sqrt(Color[2]));
+			Col /= float(Ns);
+			Col = vec3(sqrt(Col[0]), sqrt(Col[1]), sqrt(Col[2]));
 
-			int RedInt   = int(255.99f * Color[0]);
-			int GreenInt = int(255.99f * Color[1]);
-			int BlueInt  = int(255.99f * Color[2]);
+			int RedInt   = int(255.99f * Col[0]);
+			int GreenInt = int(255.99f * Col[1]);
+			int BlueInt  = int(255.99f * Col[2]);
 
-			File << RedInt << " " << GreenInt << " " << BlueInt << "\n";
+			Pixels[Index++] = RedInt;
+			Pixels[Index++] = GreenInt;
+			Pixels[Index++] = BlueInt;
+
+			//File << RedInt << " " << GreenInt << " " << BlueInt << "\n";
 		}
+
+		float Readiness = (1.f - ((float)j / (float)Height)) * 100.f;
+		printf("Readiness: %.2f%% \n", Readiness);
 	}
 
-	File.close();
+	stbi_write_png("image.png", Width, Height, ChannelNum, Pixels, Width * ChannelNum);
+
+	//File.close();
 	return 0;
 }

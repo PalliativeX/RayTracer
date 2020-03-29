@@ -2,6 +2,6 @@
 
 #include <cstdlib>
 
-inline double random_double() {
+inline double RandomDouble() {
 	return rand() / (RAND_MAX + 1.f);
 }

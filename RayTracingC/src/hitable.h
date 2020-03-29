@@ -15,5 +15,5 @@ struct hit_record
 class hitable
 {
 public:
-	virtual bool hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const = 0;
+	virtual bool Hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const = 0;
 };

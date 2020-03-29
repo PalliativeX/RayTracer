@@ -5,26 +5,26 @@
 #include "hitable.h"
 #include <stdlib.h>
 
-vec3 randomInUnitSphere()
+vec3 RandomInUnitSphere()
 {
 	vec3 P;
 	do
 	{
-		P = 2.f * vec3(random_double(), random_double(), random_double()) - vec3(1, 1, 1);
-	} while (P.squared_length() >= 1.f);
+		P = 2.f * vec3(RandomDouble(), RandomDouble(), RandomDouble()) - vec3(1, 1, 1);
+	} while (P.SquaredLength() >= 1.f);
 
 	return P;
 }
 
-vec3 reflect(const vec3& Vec, const vec3& Normal)
+vec3 Reflect(const vec3& Vec, const vec3& Normal)
 {
-	return Vec - 2 * dot(Vec, Normal) * Normal;
+	return Vec - 2 * Dot(Vec, Normal) * Normal;
 }
 
-bool refract(const vec3& Vec, const vec3& Normal, float NiOverNt, vec3& Refracted)
+bool Refract(const vec3& Vec, const vec3& Normal, float NiOverNt, vec3& Refracted)
 {
-	vec3 UV = unit_vector(Vec);
-	float Dt = dot(UV, Normal);
+	vec3 UV = UnitVector(Vec);
+	float Dt = Dot(UV, Normal);
 	float Discriminant = 1.f - NiOverNt * NiOverNt*(1 - Dt * Dt);
 	if (Discriminant > 0)
 	{
@@ -35,7 +35,7 @@ bool refract(const vec3& Vec, const vec3& Normal, float NiOverNt, vec3& Refracte
 	return false;
 }
 
-float schlick(float Cos, float RefIndex)
+float Schlick(float Cos, float RefIndex)
 {
 	float R0 = (1 - RefIndex) / (1 + RefIndex);
 	R0 = R0 * R0;
@@ -47,16 +47,16 @@ float schlick(float Cos, float RefIndex)
 class material
 {
 public:
-	virtual bool scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const = 0;
+	virtual bool Scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const = 0;
 };
 
 class lambertian : public material
 {
 public:
 	lambertian(const vec3& A) : Albedo(A) {}
-	virtual bool scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
+	virtual bool Scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
 	{
-		vec3 Target = Rec.Pos + Rec.Normal + randomInUnitSphere();
+		vec3 Target = Rec.Pos + Rec.Normal + RandomInUnitSphere();
 		Scattered = ray(Rec.Pos, Target - Rec.Pos);
 		Attenuation = Albedo;
 		return true;
@@ -73,12 +73,12 @@ public:
 		if (F < 1) Fuzz = F; else Fuzz = 1;
 	}
 
-	virtual bool scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
+	virtual bool Scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
 	{
-		vec3 Reflected = reflect(unit_vector(RayIn.direction()), Rec.Normal);
-		Scattered = ray(Rec.Pos, Reflected + Fuzz*randomInUnitSphere());
+		vec3 Reflected = Reflect(UnitVector(RayIn.direction()), Rec.Normal);
+		Scattered = ray(Rec.Pos, Reflected + Fuzz*RandomInUnitSphere());
 		Attenuation = Albedo;
-		return (dot(Scattered.direction(), Rec.Normal) > 0);
+		return (Dot(Scattered.direction(), Rec.Normal) > 0);
 	}
 
 	vec3 Albedo;
@@ -90,32 +90,32 @@ class dielectric : public material
 public:
 	dielectric(float Ri) : ReflectiveIndex(Ri) {};
 
-	virtual bool scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
+	virtual bool Scatter(const ray& RayIn, const hit_record& Rec, vec3& Attenuation, ray& Scattered) const
 	{
 		vec3 OutwardNormal;
-		vec3 Reflected = reflect(RayIn.direction(), Rec.Normal);
+		vec3 Reflected = Reflect(RayIn.direction(), Rec.Normal);
 		float NiOverNt;
 		Attenuation = vec3(1.f, 1.f, 1.f);
 		vec3 Refracted;
 		float ReflectProb;
 		float Cos;
-		if (dot(RayIn.direction(), Rec.Normal) > 0)
+		if (Dot(RayIn.direction(), Rec.Normal) > 0)
 		{
 			OutwardNormal = -Rec.Normal;
 			NiOverNt = ReflectiveIndex;
-			Cos = ReflectiveIndex * dot(RayIn.direction(), Rec.Normal) / RayIn.direction().length();
+			Cos = ReflectiveIndex * Dot(RayIn.direction(), Rec.Normal) / RayIn.direction().Length();
 		}
 		else
 		{
 			OutwardNormal = Rec.Normal;
 			NiOverNt = 1.f / ReflectiveIndex;
-			Cos = -dot(RayIn.direction(), Rec.Normal) / RayIn.direction().length();
+			Cos = -Dot(RayIn.direction(), Rec.Normal) / RayIn.direction().Length();
 		}
 
-		if (refract(RayIn.direction(), OutwardNormal, NiOverNt, Refracted))
+		if (Refract(RayIn.direction(), OutwardNormal, NiOverNt, Refracted))
 		{
 			Scattered = ray(Rec.Pos, Refracted);
-			ReflectProb = schlick(Cos, ReflectiveIndex);
+			ReflectProb = Schlick(Cos, ReflectiveIndex);
 		}
 		else
 		{
@@ -123,7 +123,7 @@ public:
 			ReflectProb = 1.f;
 		}
 
-		if (random_double() < ReflectProb)
+		if (RandomDouble() < ReflectProb)
 		{
 			Scattered = ray(Rec.Pos, Reflected);
 		}

@@ -7,19 +7,19 @@ class sphere : public hitable
 public:
 	sphere() {}
 	sphere(vec3 Cen, float R, material *Mat) : Center(Cen), Radius(R), MatPtr(Mat) {};
-	virtual bool hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const;
+	virtual bool Hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const;
 	
 	vec3 Center;
 	float Radius;
 	material *MatPtr;
 };
 
-bool sphere::hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const
+bool sphere::Hit(const ray& Ray, float TMin, float TMax, hit_record& Rec) const
 {
 	vec3 oc = Ray.origin() - Center;
-    float A = dot(Ray.direction(), Ray.direction());
-    float B = dot(oc, Ray.direction());
-    float C = dot(oc, oc) - Radius*Radius;
+    float A = Dot(Ray.direction(), Ray.direction());
+    float B = Dot(oc, Ray.direction());
+    float C = Dot(oc, oc) - Radius*Radius;
     float Discriminant = B*B - A*C;
     if (Discriminant > 0) {
         float Temp = (-B - sqrt(Discriminant))/A;
